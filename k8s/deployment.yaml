@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projcert-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: projcert
+  template:
+    metadata:
+      labels:
+        app: projcert
+    spec:
+      containers:
+      - name: projcert
+        image: kani1287/projCert:latest
+        ports:
+        - containerPort: 80
