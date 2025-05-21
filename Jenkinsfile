@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "kani1287/projcert"
         DOCKER_TAG = "${env.BUILD_NUMBER}"
-        DOCKER_CREDS = 'docker-credentials-id'
+        DOCKER_CREDS = 'docker-hub-creds'
         KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-secret'
     }
 
