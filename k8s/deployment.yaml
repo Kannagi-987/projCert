@@ -1,3 +1,4 @@
+# deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,3 +18,36 @@ spec:
         image: kani1287/projCert:latest
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        env:
+          - name: DATABASE_URL
+            value: "mongodb://mongo-db:27017/projcert"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: projcert-service
+spec:
+  selector:
+    app: proj
+
