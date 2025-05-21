@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: projcert
-        image: kani1287/projCert:latest
+        image: kani1287/projcert:latest
         ports:
         - containerPort: 80
         resources:
@@ -41,13 +41,4 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
 
----
-# service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: projcert-service
-spec:
-  selector:
-    app: proj
 
