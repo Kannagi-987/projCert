@@ -2,76 +2,40 @@ pipeline {
     agent any
 
     environment {
-        // Your Docker Hub username
-        DOCKER_USER = "kani1287"
-        APP_NAME = "projCert"
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
-        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}"
+        DOCKER_IMAGE = "kani1287/projcert"
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_CREDS = 'docker-credentials-id'
+        KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-secret'
     }
 
     stages {
-
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                // Clone from GitHub
-                git url: 'https://github.com/Kannagi-987/projCert.git', branch: 'main'
+                git 'https://github.com/Kannagi-987/projCert'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build Docker Image') {
             steps {
-                // Assumes Node.js project – adjust for Python, Java, etc.
-                sh 'npm install || echo "No npm dependencies"'
+                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
             }
         }
 
-        stage('Run Tests') {
+        stage('Push Docker Image') {
             steps {
-                // Adjust or remove if no tests exist
-                sh 'npm test || echo "No tests defined"'
-            }
-        }
-
-      stage('Build Docker Image') {
-            steps {
-                script {
-                    sh "docker build -t ${IMAGE_NAME} ."
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh """
-                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                            docker push ${IMAGE_NAME}
-                        """
-                    }
-                }
-            }
-        }
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    withCredentials([file(credentialsId: 'kubeconfig-secret', variable: 'KUBECONFIG')]) {
-                        sh """
-                            echo 'Deploying to Kubernetes...'
-                            kubectl set image deployment/${APP_NAME}-deployment ${APP_NAME}=${IMAGE_NAME} --record || kubectl apply -f k8s/deployment.yaml
-                        """
-                    }
+                withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIALS_ID}", variable: 'KUBECONFIG')]) {
+                    sh 'kubectl apply -f deployment.yaml'
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ Build and Docker push completed successfully!"
-        }
-        failure {
-            echo "❌ Build failed. Check logs above."
         }
     }
 }
