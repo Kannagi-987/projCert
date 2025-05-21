@@ -6,6 +6,7 @@ pipeline {
         DOCKER_USER = "kani1287"
         APP_NAME = "projCert"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}"
     }
 
     stages {
@@ -31,11 +32,10 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+      stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the image: docker build -t username/appname:build_number .
-                    dockerImage = docker.build("${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}")
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
@@ -43,9 +43,23 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Push the image using stored Docker Hub credentials (ID: docker-hub-creds)
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-creds') {
-                        dockerImage.push()
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh """
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker push ${IMAGE_NAME}
+                        """
+                    }
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'kubeconfig-secret', variable: 'KUBECONFIG')]) {
+                        sh """
+                            echo 'Deploying to Kubernetes...'
+                            kubectl set image deployment/${APP_NAME}-deployment ${APP_NAME}=${IMAGE_NAME} --record || kubectl apply -f k8s/deployment.yaml
+                        """
                     }
                 }
             }
